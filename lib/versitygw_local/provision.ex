@@ -6,9 +6,9 @@ defmodule VersitygwLocal.Provision do
   Provision the single `versitygw` binary for a build target.
 
   Downloads the matching [`versity/versitygw`](https://github.com/versity/versitygw)
-  single-binary release, extracts the executable, and (optionally) installs it
-  into a `priv/versitygw/` directory a release can bundle. Pure Erlang/`curl` —
-  no external archive tools required (`:zip` / `:erl_tar`).
+  single-binary release, extracts the executable, and installs it into a
+  `priv/versitygw/` directory a release can bundle. Pure Erlang/`curl` — no
+  external archive tools required (`:zip` / `:erl_tar`).
 
   Downloads are cached under `~/.cache/versitygw_local/`.
 
@@ -18,30 +18,22 @@ defmodule VersitygwLocal.Provision do
 
   require Logger
 
-  @default_tag "v1.6.0"
+  @tag "v1.6.0"
 
   @assets %{
-    {:linux, :x86_64} => "versitygw_#{@default_tag}_Linux_x86_64.tar.gz",
-    {:darwin, :aarch64} => "versitygw_#{@default_tag}_Darwin_arm64.tar.gz",
-    {:windows, :x86_64} => "versitygw_#{@default_tag}_Windows_x86_64.zip"
+    {:linux, :x86_64} => "versitygw_#{@tag}_Linux_x86_64.tar.gz",
+    {:darwin, :aarch64} => "versitygw_#{@tag}_Darwin_arm64.tar.gz",
+    {:windows, :x86_64} => "versitygw_#{@tag}_Windows_x86_64.zip"
   }
-
-  @doc "The pinned default versitygw release tag."
-  @spec default_tag() :: String.t()
-  def default_tag, do: @default_tag
-
-  @doc "Supported `{os, cpu}` targets."
-  @spec targets() :: [{atom(), atom()}]
-  def targets, do: Map.keys(@assets)
 
   @doc """
   Download URL for a `{os, cpu}` target, or `{:error, :unsupported_target}`.
   """
-  @spec asset_url({atom(), atom()}, String.t()) :: {:ok, String.t()} | {:error, :unsupported_target}
-  def asset_url(target, tag \\ @default_tag) do
+  @spec asset_url({atom(), atom()}) :: {:ok, String.t()} | {:error, :unsupported_target}
+  def asset_url(target) do
     case Map.fetch(@assets, target) do
       {:ok, asset} ->
-        {:ok, "https://github.com/versity/versitygw/releases/download/#{tag}/#{asset}"}
+        {:ok, "https://github.com/versity/versitygw/releases/download/#{@tag}/#{asset}"}
 
       :error ->
         {:error, :unsupported_target}
@@ -49,30 +41,12 @@ defmodule VersitygwLocal.Provision do
   end
 
   @doc """
-  Fetch (download + extract, cached) the versitygw executable for `target`.
-  Returns `{:ok, path}` to the extracted binary, or `{:error, reason}`.
-  """
-  @spec fetch({atom(), atom()}, keyword()) :: {:ok, String.t()} | {:error, term()}
-  def fetch(target, opts \\ []) do
-    with {:ok, url} <- asset_url(target, opts[:tag] || @default_tag) do
-      exe = if elem(target, 0) == :windows, do: "versitygw.exe", else: "versitygw"
-
-      try do
-        {:ok, fetch_tool(url, exe)}
-      rescue
-        e -> {:error, Exception.message(e)}
-      end
-    end
-  end
-
-  @doc """
   Fetch and install the versitygw executable into `priv_dir/versitygw/`, chmod
   0755, returning `{:ok, installed_path}`. Use from a release/Burrito step.
   """
-  @spec install({atom(), atom()}, String.t(), keyword()) ::
-          {:ok, String.t()} | {:error, term()}
-  def install(target, priv_dir, opts \\ []) do
-    with {:ok, bin} <- fetch(target, opts) do
+  @spec install({atom(), atom()}, String.t()) :: {:ok, String.t()} | {:error, term()}
+  def install(target, priv_dir) do
+    with {:ok, bin} <- fetch(target) do
       exe = Path.basename(bin)
       dest_dir = Path.join(priv_dir, "versitygw")
       File.mkdir_p!(dest_dir)
@@ -85,6 +59,18 @@ defmodule VersitygwLocal.Provision do
   end
 
   # --- download + extract ----------------------------------------------------
+
+  defp fetch(target) do
+    with {:ok, url} <- asset_url(target) do
+      exe = if elem(target, 0) == :windows, do: "versitygw.exe", else: "versitygw"
+
+      try do
+        {:ok, fetch_tool(url, exe)}
+      rescue
+        e -> {:error, Exception.message(e)}
+      end
+    end
+  end
 
   defp fetch_tool(url, exe) do
     asset = Path.basename(url)

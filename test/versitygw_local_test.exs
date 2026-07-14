@@ -24,19 +24,20 @@ defmodule VersitygwLocalTest do
       assert is_binary(cfg[:access_key_id])
     end
 
-    test "honors overrides" do
-      cfg = VersitygwLocal.s3_config(port: 9000, access_key: "ak", secret_key: "sk", region: "eu")
+    test "honors port/credential overrides" do
+      cfg = VersitygwLocal.s3_config(port: 9000, access_key: "ak", secret_key: "sk")
       assert cfg[:port] == 9000
       assert cfg[:access_key_id] == "ak"
       assert cfg[:secret_access_key] == "sk"
-      assert cfg[:region] == "eu"
     end
   end
 
   describe "bin/1" do
-    test "prefers an explicit existing :bin" do
-      assert {:ok, path} = VersitygwLocal.bin(bin: System.find_executable("sh"))
+    test "resolves via the :bin_env env var" do
+      System.put_env("VERSITYGW_BIN_TEST", System.find_executable("sh"))
+      assert {:ok, path} = VersitygwLocal.bin(bin_env: "VERSITYGW_BIN_TEST")
       assert String.ends_with?(path, "sh")
+      System.delete_env("VERSITYGW_BIN_TEST")
     end
   end
 
@@ -49,12 +50,6 @@ defmodule VersitygwLocalTest do
 
     test "asset_url/1 rejects unsupported targets" do
       assert {:error, :unsupported_target} = VersitygwLocal.Provision.asset_url({:plan9, :sparc})
-    end
-
-    test "targets/0 lists the three supported triplets" do
-      assert {:linux, :x86_64} in VersitygwLocal.Provision.targets()
-      assert {:darwin, :aarch64} in VersitygwLocal.Provision.targets()
-      assert {:windows, :x86_64} in VersitygwLocal.Provision.targets()
     end
   end
 end

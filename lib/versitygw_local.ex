@@ -61,7 +61,6 @@ defmodule VersitygwLocal do
     * `:port` — S3 port (default #{@default_port}).
     * `:root` — posix directory served (see `default_root/1`).
     * `:access_key` / `:secret_key` — gateway root credentials.
-    * `:region` — S3 region (default `#{@default_region}`).
     * `:bin` / `:bin_env` / `:priv_app` — binary resolution (see `bin/1`).
   """
   @spec with_gateway(opts(), (keyword() -> result)) :: result | {:error, term()}
@@ -87,7 +86,7 @@ defmodule VersitygwLocal do
 
   @doc """
   S3 endpoint config (keyword list for `ExAws.request/2`) pointing at the local
-  gateway. Uses the same `:port` / `:access_key` / `:secret_key` / `:region`
+  gateway. Uses the same `:port` / `:access_key` / `:secret_key`
   options as `with_gateway/2`.
   """
   @spec s3_config(opts()) :: keyword()
@@ -98,13 +97,13 @@ defmodule VersitygwLocal do
       scheme: "http://",
       host: "localhost",
       port: opts[:port] || @default_port,
-      region: opts[:region] || @default_region
+      region: @default_region
     ]
   end
 
   @doc """
-  Resolve the versitygw binary: explicit `:bin`, then the `:bin_env` env var
-  (default `VERSITYGW_BIN`), then `priv/versitygw/` of `:priv_app`, then `$PATH`.
+  Resolve the versitygw binary: the `:bin_env` env var (default `VERSITYGW_BIN`),
+  then `priv/versitygw/` of `:priv_app`, then `$PATH`.
   """
   @spec bin(opts()) :: {:ok, String.t()} | {:error, String.t()}
   def bin(opts \\ []) do
@@ -124,7 +123,6 @@ defmodule VersitygwLocal do
       end
 
     cond do
-      (b = opts[:bin]) && File.exists?(b) -> {:ok, b}
       b = System.get_env(env_name) -> {:ok, b}
       bundled && File.exists?(bundled) -> {:ok, bundled}
       b = System.find_executable("versitygw") -> {:ok, b}
